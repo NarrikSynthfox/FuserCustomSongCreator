@@ -20,6 +20,7 @@ public:
 	// Read encrypted Mogg data. Returns number of elements read.
 	size_t ReadRaw(void* buf, size_t elementSize, size_t elements);
 	uint32_t sample_rate;
+	uint32_t numSamples;
 
 private:
 	void VorbisEncrypter::GenerateIv(uint8_t* header_ptr);

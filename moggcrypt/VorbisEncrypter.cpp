@@ -93,6 +93,7 @@ VorbisEncrypter::VorbisEncrypter(void* datasource, int oggMapType, ov_callbacks 
 	source_ogg_offset = 0;
 	encrypted_length = total_length + hmx_header.size();
 	sample_rate = map.sample_rate;
+	numSamples = map.numSamples;
 }
 
 VorbisEncrypter::~VorbisEncrypter() {
