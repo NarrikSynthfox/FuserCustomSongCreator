@@ -26,5 +26,4 @@ struct OggMap {
     uint32_t samples;
   };
   std::vector<Entry> entries;
-  uint32_t numSamples;
 };

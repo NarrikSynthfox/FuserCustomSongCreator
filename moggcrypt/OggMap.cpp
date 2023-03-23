@@ -38,7 +38,6 @@ void ComputeMap(vorbis_state* vs, OggMap &map) {
 		map.entries.emplace_back(current_bytes, current_samples);
 	}
 	map.num_entries = map.entries.size();
-	map.numSamples = total_samples;
 }
 
 
