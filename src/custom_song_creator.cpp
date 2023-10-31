@@ -43,6 +43,24 @@ bool endsWith(const std::string& str, const std::string& suffix) {
 	}
 }
 
+std::string formatFloatString(std::string& input, int numDecimalPlaces) {
+	// Find the position of the decimal point
+	size_t decimalPos = input.find('.');
+
+	if (decimalPos != std::string::npos) {
+		// Ensure that there are at least numDecimalPlaces characters after the decimal point
+		size_t requiredLength = decimalPos + 1 + numDecimalPlaces;
+		if (input.length() < requiredLength) {
+			// Pad the string with zeros if necessary
+			input.append(requiredLength - input.length(), '0');
+		}
+		return input.substr(0, requiredLength);
+	}
+
+	// If there's no decimal point, return the input as is
+	return input;
+}
+
 struct AudioCtx {
 	HSAMPLE currentMusic = 0;
 	int currentDevice = -1;
@@ -709,7 +727,7 @@ int curPickup = -1;
 int curChord = -1;
 float pickupInput = 0;
 float chordInput = 0;
-
+int chordInputTicks = 0;
 std::string moggName(std::string inName) {
 	return inName.substr(3, inName.length() - 8);
 }
@@ -1072,6 +1090,7 @@ void display_keyzone_settings(hmx_fusion_nodes* keyzone, std::vector<HmxAudio::P
 }
 bool midi_error = false;
 std::string mfrError;
+std::string last_import_midi;
 void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, HmxAudio::PackageFile*& fusionPackageFile, std::vector<HmxAudio::PackageFile*>& moggFiles, bool disc_advanced, int disc_midi_maj_single, int disc_midi_min_single, bool isRiser = false)
 {
 	ImVec2 btnHolderSize = ImVec2(ImGui::GetContentRegionAvail().x / 2, 30);
@@ -1118,7 +1137,6 @@ void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, HmxAudio:
 	ImGui::Text("Overwrite MIDI");
 	bool overwrite_midi = false;
 	bool maj = true;
-	midi_error = false;
 	ImGui::BeginChild("btnL2", btnHolderSize);
 	if (ImGui::Button("Major##OVERWRITEMAJOR", btnHolderSize)) {
 		overwrite_midi = true;
@@ -1175,8 +1193,11 @@ void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, HmxAudio:
 
 					}
 					midiAsset.audio.audioFiles[0].resourceHeader = std::move(mfr);
+					midi_error = false;
+					mfrError = "";
 				}
 				else {
+					last_import_midi = celData.type.getString() + (isRiser ? " Riser" : " Disc") + (maj ? " Major" : " Minor" );
 					midi_error = true;
 					if (mfr.magic == 0) {
 						mfrError = "MIDI file does not contain 'samplemidi' track";
@@ -1189,13 +1210,16 @@ void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, HmxAudio:
 			}
 		}
 		catch (const std::exception& ex) {
+			last_import_midi = celData.type.getString() + (isRiser ? " Riser" : " Disc") + (maj ? " Major" : " Minor");
 			midi_error = true;
 			mfrError = ex.what();
 		}
 		
 
 	}
-
+	if (midi_error) {
+		ImGui::TextWrapped(("Error importing " + last_import_midi + " MIDI: " + mfrError).c_str());
+	}
 	ImGui::Spacing();
 
 	ImGui::Text("Export MIDI");
@@ -1400,6 +1424,7 @@ void display_cel_audio_options(CelData& celData, HmxAssetFile& asset, std::vecto
 		curChord = -1;
 		pickupInput = 0;
 		chordInput = 0;
+		chordInputTicks = 0;
 		lastCelTab = curCelTab + curCelTabOffset;
 	}
 
@@ -1936,9 +1961,10 @@ void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWindowSiz
 
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable(std::to_string(mfr.chords[i].start / 480).c_str(), curChord == i)) {
+				
+				if (ImGui::Selectable(formatFloatString(std::to_string(mfr.chords[i].start / 480.0F),2).c_str(), curChord == i)) {
 					curChord = i;
-					chordInput = mfr.chords[i].start / 480;
+					chordInput = mfr.chords[i].start / 480.0F;
 				}
 				ImGui::TableNextColumn();
 
@@ -1990,30 +2016,31 @@ void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWindowSiz
 
 
 	ImGui::BeginChild("ChordsButtons", ImVec2(windowSize.x / 3, 145));
-	if (ImGui::InputFloat("Chord Beat", &chordInput, 0.0F, 0.0F, "%.2f")) {
+	if (ImGui::InputFloat("Chord Beat", &chordInput, 0.0F, 0.0F, "%.2f", ImGuiInputTextFlags_CharsDecimal)) {
 		chordInput = std::round(std::clamp(chordInput, 0.0F, celData.tickLength / 480.0F) * 100) / 100;
+		chordInputTicks = chordInput * 480;
 	}
 	if (ImGui::Button("Add Chord")) {
 		unsavedChanges = true;
 		chordInput = std::round(std::clamp(chordInput, 0.0F, celData.tickLength / 480.0F) * 100) / 100;
-		
+		chordInputTicks = chordInput * 480;
 		if (mfr.chords.size() > 0) {
 			bool chordExists = false;
 			for (int i = 0; i < mfr.chords.size(); i++) {
-				if (mfr.chords[i].start == (int)(chordInput * 480)) {
+				if (mfr.chords[i].start == chordInputTicks) {
 					chordExists = true;
 					break;
 				}
 			}
 			if (!chordExists) {
 				HmxAudio::PackageFile::MidiFileResource::Chord newChord;
-				newChord.start = (int)(chordInput * 480);
+				newChord.start = chordInputTicks;
 				newChord.end = newChord.start + 1;
 				newChord.name = minor ? "1m" : "1";
 				mfr.chords.emplace_back(newChord);
 				std::sort(mfr.chords.begin(), mfr.chords.end(), compareChords);
 				for (int i = 0; i < mfr.chords.size(); i++) {
-					if (mfr.chords[i].start == (int)(chordInput * 480)) {
+					if (mfr.chords[i].start == chordInputTicks) {
 						curChord = i;
 						break;
 					}
@@ -2022,7 +2049,7 @@ void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWindowSiz
 		}
 		else {
 			HmxAudio::PackageFile::MidiFileResource::Chord newChord;
-			newChord.start = (int)(chordInput * 480);
+			newChord.start = chordInputTicks;
 			newChord.end = mfr.final_tick;
 			newChord.name = minor ? "1m" : "1";
 			mfr.chords.emplace_back(newChord);
@@ -2033,22 +2060,23 @@ void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWindowSiz
 	if (ImGui::Button("Update Chord Beat") && mfr.chords.size() > 0) {
 		unsavedChanges = true;
 		chordInput = std::round(std::clamp(chordInput, 0.0F, celData.tickLength / 480.0F) * 100) / 100;
+		chordInputTicks = chordInput * 480;
 		if (mfr.chords.size() == 1) {
-			mfr.chords[curChord].start = (int)(chordInput * 480);
+			mfr.chords[curChord].start = chordInputTicks;
 		}
 		else {
 			bool chordExists = false;
 			for (int i = 0; i < mfr.chords.size(); i++) {
-				if (mfr.chords[i].start == (int)(chordInput * 480)) {
+				if (mfr.chords[i].start == chordInputTicks) {
 					chordExists = true;
 					break;
 				}
 			}
 			if (!chordExists) {
-				mfr.chords[curChord].start = (int)(chordInput * 480);
+				mfr.chords[curChord].start = chordInputTicks;
 				std::sort(mfr.chords.begin(), mfr.chords.end(), compareChords);
 				for (int i = 0; i < mfr.chords.size(); i++) {
-					if (mfr.chords[i].start == (int)(chordInput * 480)) {
+					if (mfr.chords[i].start == chordInputTicks) {
 						curChord = i;
 						break;
 					}
@@ -2384,26 +2412,6 @@ void display_cel_data(CelData& celData, FuserEnums::KeyMode::Value currentKeyMod
 			if (ImGui::BeginTabBar("DiscAdvancedTabs")) {
 				if (ImGui::BeginTabItem("Fusion/MIDI")) {
 					display_fusionmidisettings(asset, celData, fusionPackageFile, moggFiles, disc_advanced, disc_midi_maj_single, disc_midi_min_single);
-					if (midi_error) {
-						if (ImGui::BeginPopupModal("MIDI Error", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-						{
-							ImGui::PopStyleColor();
-							ImGui::BeginChild("Text", ImVec2(420, 69));
-							ImGui::TextWrapped(mfrError.c_str());
-							ImGui::EndChild();
-							ImGui::BeginChild("Buttons", ImVec2(420, 25));
-							if (ImGui::Button("OK", ImVec2(120, 0)))
-							{
-								ImGui::CloseCurrentPopup();
-							}
-							ImGui::EndChild();
-
-
-							ImGui::EndPopup();
-							ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2, 0.2, 0.2, 1));
-						}
-
-					}
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Pickups")) {
@@ -2432,7 +2440,7 @@ void display_cel_data(CelData& celData, FuserEnums::KeyMode::Value currentKeyMod
 					}
 					ImGui::EndChild();
 					ImGui::BeginChild("PickupButtons", ImVec2(windowSize.x / 3, 145));
-					if (ImGui::InputFloat("Pickup Beat", &pickupInput, 0.0F, 0.0F, "%.2f")) {
+					if (ImGui::InputFloat("Pickup Beat", &pickupInput, 0.0F, 0.0F, "%.2f", ImGuiInputTextFlags_CharsDecimal)) {
 						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 128.0F) * 100) / 100;
 					}
 					if (ImGui::Button("Add Pickup")) {
@@ -3004,7 +3012,13 @@ void custom_song_creator_update(size_t width, size_t height) {
 		ImGui::BeginChild("Buttons", ImVec2(600, 25));
 		if (ImGui::Button("OK", ImVec2(200, 0)))
 		{
-			fcsc_cfg.saveConfig(fcsc_cfg.path);
+			if (fcsc_cfg.defaultShortName.length() > 0) {
+				fcsc_cfg.saveConfig(fcsc_cfg.path);
+			}
+			else {
+				fcsc_cfg.defaultShortName = "custom_song";
+				fcsc_cfg.saveConfig(fcsc_cfg.path);
+			}
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
@@ -3015,7 +3029,14 @@ void custom_song_creator_update(size_t width, size_t height) {
 		ImGui::SameLine();
 		if (ImGui::Button("Apply", ImVec2(200, 0)))
 		{
-			fcsc_cfg.saveConfig(fcsc_cfg.path);
+			if (fcsc_cfg.defaultShortName.length() > 0) {
+				fcsc_cfg.saveConfig(fcsc_cfg.path);
+			}
+			else {
+				fcsc_cfg.defaultShortName = "custom_song";
+				fcsc_cfg.saveConfig(fcsc_cfg.path);
+			}
+			
 		}
 		ImGui::EndChild();
 
