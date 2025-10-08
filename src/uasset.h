@@ -1072,16 +1072,11 @@ struct HmxAudio {
 				std::vector<std::string> strings;
 				
 				void serialize(DataBuffer& buffer) {
-					std::cout << "TRACK" << std::endl;
 					buffer.serialize(unk0);
-					std::cout << "unk0: " << unk0 << std::endl;
 					buffer.serialize(unk1);
-					std::cout << "unk1: " << unk1 << std::endl;
 					buffer.serialize(num_events);
-					std::cout << "num_events: " << num_events << std::endl;
 					buffer.serializeWithSize(events,num_events);
 					buffer.serialize(num_strings);
-					std::cout << "num_strings: " << num_strings << std::endl;
 					buffer.serializeWithSize_nonull(strings, num_strings);
 					if (buffer.loading) {
 						for (MFREvent& eventdata : events) {
@@ -1094,7 +1089,6 @@ struct HmxAudio {
 							}
 						}
 					}
-					
 					
 					
 				}
@@ -1234,57 +1228,41 @@ struct HmxAudio {
 
 			void serialize(DataBuffer& buffer) {
 				std::cout << std::endl << std::endl;
-				std::cout << "START" << std::endl << std::endl;
 				if (!buffer.loading) {
 					updateChords();
 					num_tracks = tracks.size();
 				}
 				buffer.serialize(magic);
-				std::cout << "magic: " << magic << std::endl;
 				buffer.serialize(last_tick);
-				std::cout << "last_tick: " << last_tick << std::endl;
 				buffer.serialize(num_tracks);
-				std::cout << "num_tracks: " << num_tracks << std::endl;
 				buffer.serializeWithSize(tracks, num_tracks);
 				buffer.serialize(final_tick_or_rev);
-				std::cout << "final_tick_or_rev: " << final_tick_or_rev << std::endl;
 				if (final_tick_or_rev == 0x56455223) {
 					buffer.serialize(fuser_revision);
-					std::cout << "fuser_revision: " << fuser_revision << std::endl;
 					buffer.serialize(final_tick);
-					std::cout << "final_tick: " << final_tick << std::endl;
 				}
 				else {
 					final_tick = final_tick_or_rev;
 				}
 				buffer.serialize(measures);
-				std::cout << "measures: " << measures << std::endl;
 				buffer.serializeWithSize(unknown_ints,6);
 				buffer.serialize(final_tick_minus_one);
-				std::cout << "final_tick_minus_one: " << final_tick_minus_one << std::endl;
 				buffer.serializeWithSize(unknown_floats,4);
 				
 				buffer.serialize(tempos_len);
-				std::cout << "tempos_len: " << tempos_len << std::endl;
 				buffer.serializeWithSize(tempos, tempos_len);
 				buffer.serialize(timesigs_len);
-				std::cout << "timesigs_len: " << timesigs_len << std::endl;
 				buffer.serializeWithSize(timesigs, timesigs_len);
 				buffer.serialize(beats_len);
-				std::cout << "beats_len: " << beats_len << std::endl;
 				buffer.serializeWithSize(beats, beats_len);
 
 				buffer.serialize(unknown_zero);
-				std::cout << "unknown 0: " << unknown_zero << std::endl;
 				if (fuser_revision > 1) {
 					buffer.serialize(fuser_revision_2);
-					std::cout << "fuser_revision_2: " << fuser_revision_2 << std::endl;
 					buffer.serialize(chords_len);
-					std::cout << "chords_len: " << chords_len << std::endl;
 					buffer.serializeWithSize(chords, chords_len);
 				}
 				buffer.serialize(tracknames_len);
-				std::cout << "tracknames_len: " << tracknames_len << std::endl;
 				buffer.serializeWithSize_nonull(tracknames, tracknames_len);
 			}
 
@@ -1359,12 +1337,18 @@ struct HmxAudio {
 						else if (mfrEvent.event_type == 8) { //META
 							outEvent.type = EventType::Meta;
 							MFRTrack::MFREvent::EventData_Meta outData = std::get<MFRTrack::MFREvent::EventData_Meta>(mfrEvent.event_data);
+							std::string outString = "";
 							if ((MetaEventType)outData.type == MetaEventType::TrackName) {
 								outTrack.name = track.strings[outData.string_index];
+								outString = outTrack.name;
 							}
-							MetaEvent outMetaEvent = MetaEvent((MetaEventType)outData.type, track.strings[outData.string_index]);
-							outEvent.inner_event = std::move(outMetaEvent);
-							
+							if (outData.string_index >= track.strings.size()) {
+								doNotSaveEvent = true;
+							}
+							else {
+								MetaEvent outMetaEvent = MetaEvent((MetaEventType)outData.type, outString);
+								outEvent.inner_event = std::move(outMetaEvent);
+							}
 						}
 						if (!doNotSaveEvent) {
 							outTrack.events.emplace_back(outEvent);
