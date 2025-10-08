@@ -45,6 +45,8 @@ struct FuserEnums {
 
 		static const std::vector<std::string>& GetValues() {
 			static std::vector<std::string> values = {
+				"EGenre::None",
+				"EGenre::Num",
 				"EGenre::Classical",
 				"EGenre::Country",
 				"EGenre::Rock",
