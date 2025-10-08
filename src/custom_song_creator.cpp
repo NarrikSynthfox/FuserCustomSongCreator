@@ -2264,7 +2264,6 @@ static void display_cel_audio_options(CelData& celData, HmxAssetFile& asset, std
 
 		auto&& ts = nodes[0]->getNode("timestretch_settings");
 		auto&& ts2 = nodes[1]->getNode("timestretch_settings");
-
 		bool natp = ts.getInt("maintain_formant") == 1;
 		bool natp_changed = ImGui::Checkbox("Natural Pitching", &natp);
 		if (natp_changed) {
@@ -2278,6 +2277,33 @@ static void display_cel_audio_options(CelData& celData, HmxAssetFile& asset, std
 				ts2.getInt("maintain_formant") = 0;
 			}
 		}
+		if (ts.getChild("orig_tempo_sync") == nullptr) {
+			hmx_fusion_node label;
+			label.key = "orig_tempo_sync";
+			label.value = 1;
+			ts.children.insert(ts.children.begin(), label);
+		}
+
+		bool orig_tempo_sync = ts.getInt("orig_tempo_sync") == 1;
+		bool ots_changed = ImGui::Checkbox("Sync orig_tempo to song tempo", &orig_tempo_sync);
+		ImGui::SameLine();
+		HelpMarker("If unchecked, will allow changing orig_tempo to a different value than the song's bpm, and the game will timestretch accordingly");
+		if (ots_changed) {
+			unsavedChanges = true;
+			if (orig_tempo_sync) {
+				ts.getInt("orig_tempo_sync") = 1;
+			}
+			else {
+				ts.getInt("orig_tempo_sync") = 0;
+			}
+		}
+		if (!orig_tempo_sync) {
+			if (ImGui::InputScalar("Original Tempo", ImGuiDataType_U32, &ts.getInt("orig_tempo"))) {
+				ts2.getInt("orig_tempo") = ts.getInt("orig_tempo");
+				unsavedChanges = true;
+			}
+		}
+
 		ImGui::EndChild();
 	}
 
@@ -3028,29 +3054,22 @@ static void display_cel_data(CelData& celData, FuserEnums::KeyMode::Value curren
 		}
 		ImGui::EndTabBar();
 	}
-	if (celData.type.value == CelType::Type::Beat) {
-		bool allUnpitched = celData.allUnpitched == true;
-		bool allUnpitchedChanged = ImGui::Checkbox("Track has no key?", &allUnpitched);
+	bool allUnpitched = celData.allUnpitched == true;
+	bool allUnpitchedChanged = ImGui::Checkbox("Track has no key?", &allUnpitched);
 
-		if (allUnpitchedChanged) {
-			unsavedChanges = true;
-			if (allUnpitched) {
-				celData.allUnpitched = true;
-				celData.songTransitionFile.data.allUnpitched = true;
-			}
-			else {
-				celData.allUnpitched = false;
-				celData.songTransitionFile.data.allUnpitched = false;
-			}
+	if (allUnpitchedChanged) {
+		unsavedChanges = true;
+		if (allUnpitched) {
+			celData.allUnpitched = true;
+			celData.songTransitionFile.data.allUnpitched = true;
 		}
-		ImGui::SameLine();
-		HelpMarker("When this is checked, the disc and riser will both have key and mode set to Num, which is no key or mode. This allows for FUSER to change the key/mode when you drop down another disc if this one is playing.");
+		else {
+			celData.allUnpitched = false;
+			celData.songTransitionFile.data.allUnpitched = false;
+		}
 	}
-	else {
-		celData.allUnpitched = false;
-		celData.songTransitionFile.data.allUnpitched = false;
-	}
-	
+	ImGui::SameLine();
+	HelpMarker("When this is checked, the disc and riser will both have key and mode set to Num, which is no key or mode. This allows for FUSER to change the key/mode when you drop down another disc if this one is playing.");
 }
 
 void set_g_pd3dDevice(ID3D11Device* g_pd3dDevice) {
