@@ -33,6 +33,8 @@ struct FuserEnums {
 
 	struct Genre {
 		enum class Value {
+			None,
+			Num,
 			Classical,
 			Country,
 			Rock,
