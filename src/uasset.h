@@ -937,7 +937,7 @@ struct HmxAudio {
 		struct MidiFileResource {
 			bool is_single_note = true;
 			bool minor = false;
-			std::vector<std::string> chordList = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "b2" };
+			std::vector<std::string> chordList = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "1sus2" };
 			struct MFRTrack {
 				u32 trackname_str_idx;
 

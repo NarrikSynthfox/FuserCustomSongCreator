@@ -1638,9 +1638,9 @@ static void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, Hm
 	
 }
 
-const char* chordNamesMinorMajor[] = { "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "b2" };
-const char* chordNamesMajorMinor[] = { "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "b2" };
-const char* chordNamesInterleaved[] = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "b2" };
+const char* chordNamesMinorMajor[] = { "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "1sus2" };
+const char* chordNamesMajorMinor[] = { "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "1sus2" };
+const char* chordNamesInterleaved[] = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "1sus2" };
 
 static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChordsMode(std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> chords, bool minor) {
 	for (auto& chd : chords) {
@@ -1679,7 +1679,7 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 					chd.name != "b5m" &&
 					chd.name != "b6m" &&
 					chd.name != "7" &&
-					chd.name != "b2") {
+					chd.name != "1sus2") {
 					if (minor)
 						chd.name = "1m";
 					else
@@ -1719,7 +1719,7 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 						chd.name != "b6m" &&
 						chd.name != "7" &&
 						chd.name != "b7m" &&
-						chd.name != "b2") {
+						chd.name != "1sus2") {
 						chd.name = "1m";
 					}
 				}
@@ -1757,7 +1757,7 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 						chd.name != "b6m" &&
 						chd.name != "7" &&
 						chd.name != "7m" &&
-						chd.name != "b2") {
+						chd.name != "1sus2") {
 						chd.name = "1";
 					}
 				}
