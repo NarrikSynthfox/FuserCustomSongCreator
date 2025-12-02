@@ -1649,19 +1649,19 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 				chd.name = "1m";
 			else if (chd.name == "1m")
 				chd.name = "1";
-			else if (chd.name == "2m")
+			else if (chd.name == "2m" || chd.name == "2")
 				chd.name = "2mb5";
-			else if (chd.name == "2mb5")
+			else if (chd.name == "2mb5" || chd.name == "#1")
 				chd.name = "2m";
 			else if (chd.name == "3m")
 				chd.name = "b3";
-			else if (chd.name == "b3")
+			else if (chd.name == "b3" || chd.name == "b3m")
 				chd.name = "3m";
-			else if (chd.name == "4")
+			else if (chd.name == "4" || chd.name == "b5mb5")
 				chd.name = "4m";
 			else if (chd.name == "4m")
 				chd.name = "4";
-			else if (chd.name == "5m" || chd.name == "b7")
+			else if (chd.name == "5m")
 				chd.name = "5";
 			else if (chd.name == "5")
 				chd.name = "5m";
@@ -1669,8 +1669,20 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 				chd.name = "6m";
 			else if (chd.name == "6m")
 				chd.name = "b6";
+			else if (chd.name == "b7" || chd.name == "b7m")
+				chd.name = "7mb5";
+			else if (chd.name == "7mb5" || chd.name == "7m")
+				chd.name = "b7";
 			else {
-				if (chd.name != "b2") {
+				if (chd.name != "#1m" &&
+					chd.name != "2" &&
+					chd.name != "3" &&
+					chd.name != "b5" &&
+					chd.name != "b5m" &&
+					chd.name != "6" &&
+					chd.name != "b6m" &&
+					chd.name != "7" &&
+					chd.name != "b2") {
 					if (minor)
 						chd.name = "1m";
 					else
@@ -1682,16 +1694,18 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 			if (minor) {
 				if (chd.name == "1")
 					chd.name = "1m";
-				else if (chd.name == "2m")
+				else if (chd.name == "2m" || chd.name == "2")
 					chd.name = "2mb5";
 				else if (chd.name == "3m")
 					chd.name = "b3";
-				else if (chd.name == "4")
+				else if (chd.name == "4" || chd.name == "b5mb5")
 					chd.name = "4m";
 				else if (chd.name == "5")
 					chd.name = "5m";
 				else if (chd.name == "6m")
 					chd.name = "b6";
+				else if (chd.name == "7mb5" || chd.name == "7m")
+					chd.name = "b7";
 				else {
 					if (chd.name != "1m" &&
 						chd.name != "2mb5" &&
@@ -1700,6 +1714,17 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 						chd.name != "5m" &&
 						chd.name != "b6" &&
 						chd.name != "b7" &&
+						chd.name != "#1" &&
+						chd.name != "#1m" &&
+						chd.name != "3" &&
+						chd.name != "b3m" &&
+						chd.name != "b5" &&
+						chd.name != "b5m" &&
+						chd.name != "6" &&
+						chd.name != "b6m" &&
+						chd.name != "7" &&
+						chd.name != "7m" &&
+						chd.name != "b7m" &&
 						chd.name != "b2") {
 						chd.name = "1m";
 					}
@@ -1708,16 +1733,18 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 			else {
 				if (chd.name == "1m")
 					chd.name = "1";
-				else if (chd.name == "2mb5")
+				else if (chd.name == "2mb5" || chd.name == "#1")
 					chd.name = "2m";
-				else if (chd.name == "b3")
+				else if (chd.name == "b3" || chd.name == "b3m")
 					chd.name = "3m";
 				else if (chd.name == "4m")
 					chd.name = "4";
-				else if (chd.name == "5m" || chd.name == "b7")
+				else if (chd.name == "5m")
 					chd.name = "5";
 				else if (chd.name == "b6")
 					chd.name = "6m";
+				else if (chd.name == "b7" || chd.name == "b7m")
+					chd.name = "7mb5";
 				else {
 					if (chd.name != "1" &&
 						chd.name != "2m" &&
@@ -1725,13 +1752,24 @@ static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChords
 						chd.name != "4" &&
 						chd.name != "5" &&
 						chd.name != "6m" &&
+						chd.name != "7mb5" &&
+						chd.name != "#1m" &&
+						chd.name != "2" &&
+						chd.name != "3" &&
+						chd.name != "b5" &&
+						chd.name != "b5m" &&
+						chd.name != "b5mb5" &&
+						chd.name != "6" &&
+						chd.name != "b6m" &&
+						chd.name != "7" &&
+						chd.name != "7m" &&
 						chd.name != "b2") {
 						chd.name = "1";
 					}
 				}
 			}
 		}
-		
+
 	}
 	return chords;
 }
@@ -2406,7 +2444,7 @@ static void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWi
 								
 								bool is_selected = (selectedChordIndex == k);
 								//used to work checking if the value at the current index is "sep" but it stopped working for some reason?????? so hardcoding the values
-								if (k==7 || k==14) {
+								if (k==7 || k==15) {
 									float separatorPadding = 2.0f; // Adjust the padding value as needed
 									float originalCursorPosY = ImGui::GetCursorPosY();
 
@@ -2436,7 +2474,7 @@ static void display_chord_edit(CelData& celData, ImVec2& windowSize, float oggWi
 							{
 
 								bool is_selected = (selectedChordIndex == k);
-								if (k==6 || k==14) {
+								if (k==7 || k==15) {
 									float separatorPadding = 2.0f; // Adjust the padding value as needed
 									float originalCursorPosY = ImGui::GetCursorPosY();
 
