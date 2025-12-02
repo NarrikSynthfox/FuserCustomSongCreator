@@ -1638,9 +1638,9 @@ static void display_fusionmidisettings(HmxAssetFile& asset, CelData& celData, Hm
 	
 }
 
-const char* chordNamesMinorMajor[] = { "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "1", "2m", "3m", "4", "5", "6m", "sep", "b2" };
-const char* chordNamesMajorMinor[] = { "1", "2m", "3m", "4", "5", "6m", "sep", "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "b2" };
-const char* chordNamesInterleaved[] = { "1", "1m", "2m", "2mb5", "3m", "b3", "4", "4m", "5", "5m", "6m", "b6", "b7", "b2" };
+const char* chordNamesMinorMajor[] = { "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "b2" };
+const char* chordNamesMajorMinor[] = { "1", "2m", "3m", "4", "5", "6m", "7mb5", "sep", "1m", "2mb5", "b3", "4m", "5m", "b6", "b7", "sep", "#1", "#1m", "2", "3", "b3m", "b5", "b5m", "b5mb5", "6", "b6m", "7", "7m", "b7m", "b2" };
+const char* chordNamesInterleaved[] = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "b2" };
 
 static std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> convertChordsMode(std::vector<HmxAudio::PackageFile::MidiFileResource::Chord> chords, bool minor) {
 	for (auto& chd : chords) {
@@ -2944,11 +2944,11 @@ static void display_cel_data(CelData& celData, FuserEnums::KeyMode::Value curren
 					ImGui::EndChild();
 					ImGui::BeginChild("PickupButtons", ImVec2(windowSize.x / 3, 145));
 					if (ImGui::InputFloat("Pickup Beat", &pickupInput, 0.0F, 0.0F, "%.2f", ImGuiInputTextFlags_CharsDecimal)) {
-						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 128.0F) * 100) / 100;
+						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 2048.0F) * 100) / 100;
 					}
 					if (ImGui::Button("Add Pickup")) {
 						unsavedChanges = true;
-						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 128.0F) * 100) / 100;
+						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 2048.0F) * 100) / 100;
 
 						if (celData.pickupArray->values.size() > 0) {
 							std::vector<float> pickups;
@@ -2988,7 +2988,7 @@ static void display_cel_data(CelData& celData, FuserEnums::KeyMode::Value curren
 					ImGui::SameLine();
 					if (ImGui::Button("Update Pickup") && celData.pickupArray->values.size() > 0) {
 						unsavedChanges = true;
-						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 128.0F) * 100) / 100;
+						pickupInput = std::round(std::clamp(pickupInput, 0.0F, 2048.0F) * 100) / 100;
 						if (celData.pickupArray->values.size() == 1) {
 							std::get<PrimitiveProperty<float>>(celData.pickupArray->values[curPickup]->v).data = pickupInput;
 						}
