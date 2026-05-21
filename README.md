@@ -5,6 +5,7 @@
 ## Introduction
 
 A small UI to create custom songs for Fuser! Requires [Fuser Song Loader](https://github.com/NarrikSynthfox/FuserSongLoader/) to function.
+
 Also includes support for the [Custom Chords mod](https://drive.google.com/file/d/1MI1G1l7FhL-KB7muAVgyIcqKqEQFKxnz/view?usp=sharing), adding more chord options for songs. Songs that use the extra chords will still work without the mod but instruments won't follow the chords as intended without the mod.
 
 ## Building
