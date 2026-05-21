@@ -2283,7 +2283,12 @@ static void display_cel_audio_options(CelData& celData, HmxAssetFile& asset, std
 			label.value = 1;
 			ts.children.insert(ts.children.begin(), label);
 		}
-
+		if (ts2.getChild("orig_tempo_sync") == nullptr) {
+			hmx_fusion_node label;
+			label.key = "orig_tempo_sync";
+			label.value = 1;
+			ts2.children.insert(ts2.children.begin(), label);
+		}
 		bool orig_tempo_sync = ts.getInt("orig_tempo_sync") == 1;
 		bool ots_changed = ImGui::Checkbox("Sync orig_tempo to song tempo", &orig_tempo_sync);
 		ImGui::SameLine();
@@ -2292,9 +2297,11 @@ static void display_cel_audio_options(CelData& celData, HmxAssetFile& asset, std
 			unsavedChanges = true;
 			if (orig_tempo_sync) {
 				ts.getInt("orig_tempo_sync") = 1;
+				ts2.getInt("orig_tempo_sync") = 1;
 			}
 			else {
 				ts.getInt("orig_tempo_sync") = 0;
+				ts2.getInt("orig_tempo_sync") = 0;
 			}
 		}
 		if (!orig_tempo_sync) {
