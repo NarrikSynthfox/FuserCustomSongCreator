@@ -731,9 +731,9 @@ struct SongTransition {
 
 			i32 bpm = ctx.bpm;
 			if (clampBPM) {
-				while (bpm > 157) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
-				if (bpm < 90) bpm = ctx.bpm; //prevent 158-179 bpm from clamping to 90
-				bpm = std::clamp(bpm, 90, 157);
+				while (bpm > 200) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
+				if (bpm < 60) bpm = ctx.bpm;
+				bpm = std::clamp(bpm, 60, 200);
 			}
 			ctx.serializePrimitive("BPM", bpm);
 
@@ -955,9 +955,9 @@ struct CelData {
 			
 			i32 bpm = ctx.bpm;
 			if (clampBPM) {
-				while (bpm > 157) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
-				if (bpm < 90) bpm = ctx.bpm; //prevent 158-179 bpm from clamping to 90
-				bpm = std::clamp(bpm, 90, 157);
+				while (bpm > 200) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
+				if (bpm < 60) bpm = ctx.bpm; 
+				bpm = std::clamp(bpm, 60, 200);
 			}
 			ctx.serializePrimitive("BPM", bpm);
 
