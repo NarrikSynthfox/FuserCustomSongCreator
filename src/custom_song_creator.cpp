@@ -3500,16 +3500,14 @@ void custom_song_creator_update(size_t width, size_t height) {
 				else {
 					tabName += "Unknown";
 				}
-				if (gCtx.currentPak->root.saveCelAsNull[celSlotIdx]) {
-					tabName += " (Null)";
-				}
+
 				tabName += "##Cel" + std::to_string(celSlotIdx);
 
 				if (ImGui::BeginTabItem(tabName.c_str())) {
 					curCelTab = static_cast<int>(celSlotIdx * 2);
 					bool wasNull = gCtx.currentPak->root.saveCelAsNull[celSlotIdx];
 					bool saveAsNullCheckboxValue = wasNull;
-					std::string checkboxLabel = "Save this channel as null##SaveCellAsNull" + std::to_string(celSlotIdx);
+					std::string checkboxLabel = "Save this channel as empty##SaveCellAsNull" + std::to_string(celSlotIdx);
 					if (ImGui::Checkbox(checkboxLabel.c_str(), &saveAsNullCheckboxValue)) {
 						gCtx.currentPak->root.saveCelAsNull[celSlotIdx] = saveAsNullCheckboxValue;
 						if (wasNull != saveAsNullCheckboxValue) {
@@ -3518,12 +3516,12 @@ void custom_song_creator_update(size_t width, size_t height) {
 					}
 
 					if (gCtx.currentPak->root.saveCelAsNull[celSlotIdx]) {
-						ImGui::TextDisabled("This slot will be hidden in-game by saving root Cels[%d] as null.", (int)celSlotIdx);
+						ImGui::TextDisabled("This slot will be hidden in-game by saving root Cels[%d] as empty.", (int)celSlotIdx);
 						if (celData != nullptr) {
 							ImGui::TextDisabled("The cel data was found and will stay editable/preserved.");
 						}
 						else {
-							ImGui::TextDisabled("No preserved cel asset was found for this null slot.");
+							ImGui::TextDisabled("No preserved cel asset was found for this empty slot.");
 						}
 					}
 
@@ -3531,7 +3529,7 @@ void custom_song_creator_update(size_t width, size_t height) {
 						display_cel_data(*celData, gCtx.currentPak->root.keyMode);
 					}
 					else {
-						ImGui::TextDisabled("This null slot has no recoverable editor data in the loaded pak.");
+						ImGui::TextDisabled("This empty slot has no recoverable editor data in the loaded pak.");
 					}
 					ImGui::EndTabItem();
 				}
