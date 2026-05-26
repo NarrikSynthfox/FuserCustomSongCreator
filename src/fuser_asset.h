@@ -731,9 +731,9 @@ struct SongTransition {
 
 			i32 bpm = ctx.bpm;
 			if (clampBPM) {
-				while (bpm > 157) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
-				if (bpm < 90) bpm = ctx.bpm; //prevent 158-179 bpm from clamping to 90
-				bpm = std::clamp(bpm, 90, 157);
+				while (bpm > 200) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
+				if (bpm < 60) bpm = ctx.bpm;
+				bpm = std::clamp(bpm, 60, 200);
 			}
 			ctx.serializePrimitive("BPM", bpm);
 
@@ -955,9 +955,9 @@ struct CelData {
 			
 			i32 bpm = ctx.bpm;
 			if (clampBPM) {
-				while (bpm > 157) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
-				if (bpm < 90) bpm = ctx.bpm; //prevent 158-179 bpm from clamping to 90
-				bpm = std::clamp(bpm, 90, 157);
+				while (bpm > 200) bpm = std::ceil(bpm /= 2); //half-time anything faster, recursively
+				if (bpm < 60) bpm = ctx.bpm; 
+				bpm = std::clamp(bpm, 60, 200);
 			}
 			ctx.serializePrimitive("BPM", bpm);
 
@@ -1082,9 +1082,58 @@ struct AssetRoot {
 	SongPakEntry file;
 
 	std::vector<FileLink<CelData>> celData;
+	std::vector<bool> saveCelAsNull;
+	std::vector<size_t> celDataIndexForSlot;
+	std::vector<i64> celLinkValForSlot;
 	std::vector<FileLink<Texture2D>> textureData;
 	AssetLink<IconFileAsset> small_icon_link;
 	AssetLink<IconFileAsset> large_icon_link;
+
+	static CelType::Type celTypeForSlot(size_t slotIdx) {
+		switch (slotIdx) {
+		case 0: return CelType::Type::Beat;
+		case 1: return CelType::Type::Bass;
+		case 2: return CelType::Type::Loop;
+		case 3: return CelType::Type::Lead;
+		default: return CelType::Type::Beat;
+		}
+	}
+
+	static i64 findRootCelLinkValForAssetPath(SongSerializationCtx &ctx, const std::string &assetPathWithoutExtension) {
+		auto &&header = ctx.getHeader();
+		const std::string fullAssetPath = Game_Prefix + assetPathWithoutExtension;
+
+		for (size_t linkIdx = 0; linkIdx < header.links.size(); ++linkIdx) {
+			i64 candidateLinkVal = -static_cast<i64>(linkIdx) - 1;
+			auto &&candidateRef = header.getLinkRef(candidateLinkVal);
+			if (candidateRef.link == 0) {
+				continue;
+			}
+
+			auto &&linkedFile = header.getLinkRef(candidateRef.link);
+			if (header.getHeaderRef(linkedFile.property) == fullAssetPath) {
+				return candidateLinkVal;
+			}
+		}
+
+		return 0;
+	}
+
+	bool wouldSaveFullyBlankSong() const {
+		if (saveCelAsNull.empty()) {
+			return false;
+		}
+
+		bool hasEnabledSlot = false;
+		for (bool saveNull : saveCelAsNull) {
+			if (!saveNull) {
+				hasEnabledSlot = true;
+				break;
+			}
+		}
+
+		return !hasEnabledSlot;
+	}
 
 	void serialize(SongSerializationCtx &ctx) {
 		ctx.shortName = shortName;
@@ -1127,12 +1176,45 @@ struct AssetRoot {
 			icon = ctx.getProp<SoftObjectProperty>(file.e, "SongIconImage_Large");
 			large_icon_link.ref = icon->name;
 			large_icon_link.serialize(ctx);
-			auto &celArray = *ctx.getProp<ArrayProperty>(file.e, "Cels");
-			for (auto &&v : celArray.values) {
-				FileLink<CelData> fileLink;
-				fileLink.linkVal = std::get<ObjectProperty>(v->v).linkVal;
-				fileLink.serialize(ctx);
+			celData.clear();
+			saveCelAsNull.clear();
+			celDataIndexForSlot.clear();
+			celLinkValForSlot.clear();
 
+			auto &celArray = *ctx.getProp<ArrayProperty>(file.e, "Cels");
+			for (size_t celSlotIdx = 0; celSlotIdx < celArray.values.size(); ++celSlotIdx) {
+				auto &&v = celArray.values[celSlotIdx];
+				i64 rootLinkVal = std::get<ObjectProperty>(v->v).linkVal;
+				bool slotIsNull = (rootLinkVal == 0);
+				saveCelAsNull.emplace_back(slotIsNull);
+				celDataIndexForSlot.emplace_back(static_cast<size_t>(-1));
+				celLinkValForSlot.emplace_back(rootLinkVal);
+
+				FileLink<CelData> fileLink;
+				fileLink.linkVal = rootLinkVal;
+
+				if (!slotIsNull) {
+					fileLink.serialize(ctx);
+				}
+				else {
+					CelType inferredType;
+					inferredType.value = celTypeForSlot(celSlotIdx);
+					std::string celAssetName = inferredType.suffix(ctx.shortName);
+					std::string celAssetPath = ctx.folderRoot() + celAssetName + "/Meta_" + celAssetName;
+					auto recoveredCelEntry = ctx.getFile(celAssetPath + ".uexp");
+
+					if (recoveredCelEntry != nullptr) {
+						fileLink.linkVal = findRootCelLinkValForAssetPath(ctx, celAssetPath);
+						celLinkValForSlot[celSlotIdx] = fileLink.linkVal;
+						auto prevFile = ctx.curEntry;
+						ctx.curEntry = recoveredCelEntry;
+						fileLink.data.file.e = recoveredCelEntry;
+						fileLink.data.serialize(ctx);
+						ctx.curEntry = prevFile;
+					}
+				}
+
+				if (fileLink.data.file.e != nullptr) {
 					ctx.songName = songName = ctx.getProp<TextProperty>(fileLink.data.file.e, "Title")->strings.back();
 					ctx.bpm = bpm = ctx.getProp<PrimitiveProperty<i32>>(fileLink.data.file.e, "BPM")->data;
 					ctx.songKey = songKey = ctx.getProp<EnumProperty>(fileLink.data.file.e, "Key")->value.getString(fileLink.data.file.e->getHeader());
@@ -1143,7 +1225,9 @@ struct AssetRoot {
 					if (ctx.curKeyMode != FuserEnums::KeyMode::Value::Num) {
 						actualMode = ctx.curKeyMode;
 					}
-				celData.emplace_back(std::move(fileLink));
+					celDataIndexForSlot[celSlotIdx] = celData.size();
+					celData.emplace_back(std::move(fileLink));
+				}
 			}
 			ctx.songKey = songKey = actualKey;
 			ctx.curKeyMode = keyMode = actualMode;
@@ -1159,10 +1243,34 @@ struct AssetRoot {
 			auto streamOptimizedProp = ctx.getOrCreateProp<BoolProperty>("IsStreamOptimized");
 			streamOptimizedProp.prop->value = isStreamOptimized;
 
-			size_t idx = 0;
 			for (auto &&e : celData) {
-				e.serialize(ctx);
-				++idx;
+				if (e.linkVal != 0) {
+					e.serialize(ctx);
+				}
+			}
+
+			auto celArrayProp = ctx.getProp<ArrayProperty>(file.e, "Cels");
+			if (celArrayProp != nullptr) {
+				size_t maxSlots = celArrayProp->values.size();
+				if (saveCelAsNull.size() < maxSlots) {
+					maxSlots = saveCelAsNull.size();
+				}
+
+				for (size_t celSlotIdx = 0; celSlotIdx < maxSlots; ++celSlotIdx) {
+					auto &obj = std::get<ObjectProperty>(celArrayProp->values[celSlotIdx]->v);
+					if (saveCelAsNull[celSlotIdx]) {
+						obj.linkVal = 0;
+					}
+					else if (celSlotIdx < celLinkValForSlot.size() && celLinkValForSlot[celSlotIdx] != 0) {
+						obj.linkVal = celLinkValForSlot[celSlotIdx];
+					}
+					else if (celSlotIdx < celDataIndexForSlot.size() && celDataIndexForSlot[celSlotIdx] != static_cast<size_t>(-1)) {
+						size_t dataIdx = celDataIndexForSlot[celSlotIdx];
+						if (dataIdx < celData.size() && celData[dataIdx].linkVal != 0) {
+							obj.linkVal = celData[dataIdx].linkVal;
+						}
+					}
+				}
 			}
 		}
 	}

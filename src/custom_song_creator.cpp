@@ -438,6 +438,7 @@ void load_file(DataBuffer&& dataBuf) {
 		FuserEnums::KeyMode::Value keyMode = gCtx.currentPak->root.keyMode;
 		FuserEnums::Genre::Value genre = gCtx.currentPak->root.genre;
 		i32 year = gCtx.currentPak->root.year;
+		std::vector<bool> saveCelAsNull = gCtx.currentPak->root.saveCelAsNull;
 		std::vector<HmxAudio::PackageFile> celFusionPackageFile;
 		std::vector<std::vector<HmxAudio::PackageFile>> celMoggFiles;
 		std::vector<std::string> instrumentTypes;
@@ -478,9 +479,16 @@ void load_file(DataBuffer&& dataBuf) {
 		gCtx.currentPak->root.keyMode = keyMode;
 		gCtx.currentPak->root.genre = genre;
 		gCtx.currentPak->root.year = year;
+		gCtx.currentPak->root.saveCelAsNull = saveCelAsNull;
+		if (gCtx.currentPak->root.saveCelAsNull.size() < gCtx.currentPak->root.celData.size()) {
+			gCtx.currentPak->root.saveCelAsNull.resize(gCtx.currentPak->root.celData.size(), false);
+		}
 
 		int idx = 0;
 		for (auto& cel : gCtx.currentPak->root.celData) {
+			if (idx >= celShortName.size()) {
+				break;
+			}
 			
 			cel.data.shortName = celShortName[idx];
 			auto&& fusionFile = cel.data.majorAssets[0].data.fusionFile.data;
@@ -606,7 +614,13 @@ void write_sig(DataBuffer outBuf, std::string outPath) {
 	std::ofstream outPak(outPath, std::ios_base::binary);
 	outPak.write((char*)sigOutBuf.buffer, sigOutBuf.size);
 }
+bool Error_FullyBlankNullCel = false;
 void save_file() {
+	if (gCtx.currentPak != nullptr && gCtx.currentPak->root.wouldSaveFullyBlankSong()) {
+		Error_FullyBlankNullCel = true;
+		return;
+	}
+
 	SongSerializationCtx ctx;
 	ctx.loading = false;
 	ctx.pak = &gCtx.currentPak->pak;
@@ -3452,19 +3466,73 @@ void custom_song_creator_update(size_t width, size_t height) {
 				ImGui::EndChild();
 				ImGui::EndTabItem();
 			}
-			int idx = 0;
-			for (auto&& cel : gCtx.currentPak->root.celData) {
-				cel.data.clampBPM = !fcsc_cfg.disableClamping;
-				cel.data.songTransitionFile.data.clampBPM = !fcsc_cfg.disableClamping;
-				std::string tabName = "Song Cell " + std::to_string(idx / 2) + " - ";
-				tabName += cel.data.type.getString();
-				tabName += "##Cel" + std::to_string(idx / 2);
+			const char* slotNames[] = { "Beat", "Bass", "Loop", "Lead" };
+			size_t slotCount = gCtx.currentPak->root.saveCelAsNull.size();
+			if (slotCount < 4) {
+				slotCount = 4;
+			}
+			if (gCtx.currentPak->root.celDataIndexForSlot.size() < slotCount) {
+				gCtx.currentPak->root.celDataIndexForSlot.resize(slotCount, static_cast<size_t>(-1));
+			}
+			if (gCtx.currentPak->root.saveCelAsNull.size() < slotCount) {
+				gCtx.currentPak->root.saveCelAsNull.resize(slotCount, false);
+			}
+
+			for (size_t celSlotIdx = 0; celSlotIdx < slotCount; ++celSlotIdx) {
+				size_t dataIdx = gCtx.currentPak->root.celDataIndexForSlot[celSlotIdx];
+				CelData* celData = nullptr;
+				if (dataIdx != static_cast<size_t>(-1) && dataIdx < gCtx.currentPak->root.celData.size()) {
+					celData = &gCtx.currentPak->root.celData[dataIdx].data;
+				}
+
+				if (celData != nullptr) {
+					celData->clampBPM = !fcsc_cfg.disableClamping;
+					celData->songTransitionFile.data.clampBPM = !fcsc_cfg.disableClamping;
+				}
+
+				std::string tabName = "Song Cell " + std::to_string(celSlotIdx) + " - ";
+				if (celData != nullptr) {
+					tabName += celData->type.getString();
+				}
+				else if (celSlotIdx < 4) {
+					tabName += slotNames[celSlotIdx];
+				}
+				else {
+					tabName += "Unknown";
+				}
+
+				tabName += "##Cel" + std::to_string(celSlotIdx);
+
 				if (ImGui::BeginTabItem(tabName.c_str())) {
-					curCelTab = idx;
-					display_cel_data(cel.data, gCtx.currentPak->root.keyMode);
+					curCelTab = static_cast<int>(celSlotIdx * 2);
+					bool wasNull = gCtx.currentPak->root.saveCelAsNull[celSlotIdx];
+					bool saveAsNullCheckboxValue = wasNull;
+					std::string checkboxLabel = "Save this channel as empty##SaveCellAsNull" + std::to_string(celSlotIdx);
+					if (ImGui::Checkbox(checkboxLabel.c_str(), &saveAsNullCheckboxValue)) {
+						gCtx.currentPak->root.saveCelAsNull[celSlotIdx] = saveAsNullCheckboxValue;
+						if (wasNull != saveAsNullCheckboxValue) {
+							unsavedChanges = true;
+						}
+					}
+
+					if (gCtx.currentPak->root.saveCelAsNull[celSlotIdx]) {
+						ImGui::TextDisabled("This slot will be hidden in-game by saving root Cels[%d] as empty.", (int)celSlotIdx);
+						if (celData != nullptr) {
+							ImGui::TextDisabled("The cel data was found and will stay editable/preserved.");
+						}
+						else {
+							ImGui::TextDisabled("No preserved cel asset was found for this empty slot.");
+						}
+					}
+
+					if (celData != nullptr) {
+						display_cel_data(*celData, gCtx.currentPak->root.keyMode);
+					}
+					else {
+						ImGui::TextDisabled("This empty slot has no recoverable editor data in the loaded pak.");
+					}
 					ImGui::EndTabItem();
 				}
-				idx += 2;
 			}
 
 			ImGui::EndTabBar();
@@ -3474,9 +3542,14 @@ void custom_song_creator_update(size_t width, size_t height) {
 			ImGui::OpenPopup("Invalid File Name");
 			Error_InvalidFileName = false;
 		}
+		if (Error_FullyBlankNullCel) {
+			ImGui::OpenPopup("Cannot Save Fully Blank Song");
+			Error_FullyBlankNullCel = false;
+		}
 		auto fileName = gCtx.currentPak->root.shortName + "_P.pak";
 		auto error = "Your file must be named as " + fileName + ", otherwise the song loader won't unlock it!";
 		ErrorModal("Invalid File Name", error.c_str());
+		ErrorModal("Cannot Save Fully Blank Song", "Cannot save a fully blank song. At least one song cell must remain enabled.");
 	}
 	else {
 		ImGui::Text("Welcome to the Fuser Custom Song Creator!");
