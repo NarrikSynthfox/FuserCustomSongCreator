@@ -372,52 +372,32 @@ double MidiFile::ProcessTempoMap() {
     }
 
     // more tempo+timesig map stuff
+    // A MIDI file plays at 120 BPM in 4/4 until it sets its own tempo and time signature
     double bpm = 120.0;
-    TimeSignatureEvent timesig;
-    double time = 0.0;
+    TimeSignatureEvent timesig{4, 2, 24, 8};
+    // The import reads the map's first entry as the song's starting tempo and time signature
+    durations.emplace(0, 0.0);
     for (const auto& [tick, time] : durations)
     {
-        TimeSigTempoEvent tEvent;
         auto it_tempo = tempos.find(tick);
         auto it_sigs = sigs.find(tick);
-        if (it_tempo != tempos.end() && it_sigs != sigs.end())
+        if (it_tempo != tempos.end())
         {
-            timesig = sigs[tick];
-            bpm = TempoToBpm(tempos[tick]);
-            tEvent.time = time;
-            tEvent.tick = tick;
-            tEvent.bpm = bpm;
-            tEvent.new_time_sig = true;
-            tEvent.new_tempo = true;
-            tEvent.numerator = timesig.numerator;
-            tEvent.denominator = (1 << timesig.denominator);
-            tempo_timesig_map_.emplace_back(tEvent);
+            bpm = TempoToBpm(it_tempo->second);
         }
-        else if (it_tempo != tempos.end())
+        if (it_sigs != sigs.end())
         {
-            bpm = TempoToBpm(tempos[tick]);
-            const auto& lastTS = tempo_timesig_map_.back();
-            tEvent.time = time;
-            tEvent.tick = tick;
-            tEvent.bpm = bpm;
-            tEvent.new_time_sig = false;
-            tEvent.new_tempo = true;
-            tEvent.numerator = lastTS.numerator;
-            tEvent.denominator = (1 << lastTS.denominator);
-            tempo_timesig_map_.emplace_back(tEvent);
+            timesig = it_sigs->second;
         }
-        else if (it_sigs != sigs.end())
-        {
-            timesig = sigs[tick];
-            tEvent.time = time;
-            tEvent.tick = tick;
-            tEvent.bpm = bpm;
-            tEvent.new_time_sig = true;
-            tEvent.new_tempo = false;
-            tEvent.numerator = timesig.numerator;
-            tEvent.denominator = (1 << timesig.denominator);
-            tempo_timesig_map_.emplace_back(tEvent);
-        }
+        TimeSigTempoEvent tEvent;
+        tEvent.time = time;
+        tEvent.tick = tick;
+        tEvent.bpm = bpm;
+        tEvent.new_time_sig = tick == 0 || it_sigs != sigs.end();
+        tEvent.new_tempo = tick == 0 || it_tempo != tempos.end();
+        tEvent.numerator = timesig.numerator;
+        tEvent.denominator = (1 << timesig.denominator);
+        tempo_timesig_map_.emplace_back(tEvent);
     }
     return duration;
 }
