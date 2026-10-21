@@ -178,19 +178,6 @@ namespace asset_helper {
 		}, value);
 	}
 
-	template<class T, class = void>
-	struct has_length : std::false_type {};
-
-	template<class T>
-	struct has_length<T, typename voider<decltype(T::needs_length)>::type> : std::true_type {};
-
-	bool needsLength(const PropertyValue &value) {
-		return std::visit([&](auto &&v) {
-			using T = std::decay_t<decltype(v)>;
-			return has_length<T>::value;
-		}, value);
-	}
-
 
 	StringRef32 createNoneRef(DataBuffer &buffer) {
 		if (buffer.ctx<AssetCtx>().parsingSaveFormat) {

@@ -304,7 +304,7 @@ struct SongSerializationCtx {
 
 		auto v = obj.data.get(header, propName);
 		if (!v) {
-			T v;
+			T v{};
 
 			PropertyData prop;
 			prop.nameRef = header->findOrCreateName(propName);
