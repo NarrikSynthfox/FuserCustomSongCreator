@@ -16,11 +16,42 @@ struct BaseCtx {
 
 struct UnrealName {
 	std::string name;
-	i16 nonCasePreservingHash;
-	i16 casePreservingHash;
+	u16 nonCasePreservingHash = 0;
+	u16 casePreservingHash = 0;
+
+	/*
+	 * Recomputed on every save rather than kept from loading: names added or renamed here
+	 * would otherwise keep a stale or uninitialized hash. UE 4.24 skips these when it loads
+	 * a package, so wrong values do not break the game, but the engine writes them from
+	 * the name, and so does this.
+	 */
+	void computeHashes() {
+		// Has to match how DataBuffer::serialize(std::string) stores the name (ANSI or UTF-16),
+		// because the hash depends on it
+		bool wide = false;
+		for (char c : name) {
+			if (c & 0x80) {
+				wide = true;
+			}
+		}
+
+		if (wide) {
+			std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
+			std::u16string utf16 = converter.from_bytes(name);
+			nonCasePreservingHash = (u16)CRC::Strihash_DEPRECATED(utf16);
+			casePreservingHash = (u16)CRC::StrCrc32(utf16);
+		}
+		else {
+			nonCasePreservingHash = (u16)CRC::Strihash_DEPRECATED(name);
+			casePreservingHash = (u16)CRC::StrCrc32(name);
+		}
+	}
 
 	void serialize(DataBuffer &buffer) {
 		buffer.serialize(name);
+		if (!buffer.loading) {
+			computeHashes();
+		}
 		buffer.serialize(nonCasePreservingHash);
 		buffer.serialize(casePreservingHash);
 	}

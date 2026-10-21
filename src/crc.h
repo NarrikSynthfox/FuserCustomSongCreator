@@ -3,6 +3,10 @@
 
 #include "core_types.h"
 
+#include <array>
+#include <cwctype>
+#include <type_traits>
+
 struct CRC {
 	inline static const u32 CRCTablesSB8[8][256] =
 	{
@@ -204,5 +208,61 @@ struct CRC {
 		}
 
 		return ~CRC;
+	}
+
+	// Strihash_DEPRECATED still uses the old MSB-first table, not CRCTablesSB8
+	inline static const std::array<u32, 256> CRCTable_DEPRECATED = [] {
+		std::array<u32, 256> table{};
+		for (u32 i = 0; i < 256; i++) {
+			u32 c = i << 24;
+			for (int bit = 0; bit < 8; bit++) {
+				c = (c & 0x80000000) ? (c << 1) ^ 0x04C11DB7 : (c << 1);
+			}
+			table[i] = c;
+		}
+		return table;
+	}();
+
+	// Only ASCII names are stored as ANSI,
+	// so ASCII upper-casing gives the same result as the engine's toupper
+	static char ToUpper(char c) {
+		if (c >= 'a' && c <= 'z') {
+			return (char)(c - 'a' + 'A');
+		}
+		return c;
+	}
+
+	static char16_t ToUpper(char16_t c) {
+		return (char16_t)std::towupper(c);
+	}
+
+	// Each character's bytes are hashed low byte first, as the engine does,
+	// so wide names hash to the same value
+	template <typename CharType>
+	static u32 Strihash_DEPRECATED(const std::basic_string<CharType> &str) {
+		u32 hash = 0;
+		for (CharType c : str) {
+			auto upper = (std::make_unsigned_t<CharType>)ToUpper(c);
+			for (size_t byte = 0; byte < sizeof(CharType); byte++) {
+				u32 index = (hash ^ (upper >> (8 * byte))) & 0xFF;
+				hash = ((hash >> 8) & 0x00FFFFFF) ^ CRCTable_DEPRECATED[index];
+			}
+		}
+		return hash;
+	}
+
+	// Every character counts as 4 bytes,
+	// so a name gives the same CRC whether it is stored as ANSI or wide
+	template <typename CharType>
+	static u32 StrCrc32(const std::basic_string<CharType> &str) {
+		u32 crc = ~0u;
+		for (CharType c : str) {
+			u32 ch = (std::make_unsigned_t<CharType>)c;
+			for (int byte = 0; byte < 4; byte++) {
+				crc = (crc >> 8) ^ CRCTablesSB8[0][(crc ^ ch) & 0xFF];
+				ch >>= 8;
+			}
+		}
+		return ~crc;
 	}
 };
