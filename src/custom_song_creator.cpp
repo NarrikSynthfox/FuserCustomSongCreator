@@ -704,47 +704,53 @@ void update_texture(std::string filepath, AssetLink<IconFileAsset> icon) {
 	rgbcx::init();
 	auto texture = &std::get<Texture2D>(icon.data.file.e->getData().data.catagoryValues[0].value);
 
+	static_assert(
+		std::is_same_v<decltype(texture->mips[0].width), decltype(texture->mips[0].height)>,
+		"Mip width and height must have the same type"
+	);
+	using MipsDimension = decltype(texture->mips[0].width);
+
+	const MipsDimension base_width = texture->mips[0].width;
+	const MipsDimension base_height = texture->mips[0].height;
+
 	for (int mip_index = 0; mip_index < texture->mips.size(); mip_index++) {
-		texture->mips[mip_index].width = (texture->mips[mip_index].width + 3) & ~3;
-		texture->mips[mip_index].height = (texture->mips[mip_index].height + 3) & ~3;
+		const MipsDimension width = std::max<MipsDimension>(4, base_width >> mip_index);
+		const MipsDimension height = std::max<MipsDimension>(4, base_height >> mip_index);
 
+		texture->mips[mip_index].width = width;
+		texture->mips[mip_index].height = height;
 
+		uint8_t* raw_data = gCtx.art.resizeAndGetData(width, height);
 
-		uint8_t* raw_data = gCtx.art.resizeAndGetData(texture->mips[mip_index].width, texture->mips[mip_index].height);
+		const MipsDimension blocks_x = (width + 3) / 4;
+		const MipsDimension blocks_y = (height + 3) / 4;
+		const auto compressed_len = blocks_x * blocks_y * 8;
+		uint8_t* compressedData = new uint8_t[compressed_len];
 
-		auto width = texture->mips[mip_index].width;
-		auto height = texture->mips[mip_index].height;
+		for (MipsDimension y = 0; y < height; y += 4) {
+			for (MipsDimension x = 0; x < width; x += 4) {
+				uint8_t inData[64]{ 0 };
 
-		uint8_t* compressedData = new uint8_t[width * height / 2];
+				for (MipsDimension ypx = 0; ypx < 4; ypx++) {
+					const MipsDimension src_y = std::min<MipsDimension>(y + ypx, height - 1);
 
+					for (MipsDimension xpx = 0; xpx < 4; xpx++) {
+						const MipsDimension src_x = std::min<MipsDimension>(x + xpx, width - 1);
 
-		for (int y = 0; y < height; y += 4) {
-			for (int x = 0; x < width; x += 4) {
-				uint8_t* inData = new uint8_t[64]{ 0 };
-				for (int ypx = 0; ypx < 4; ypx++)
-				{
-					for (int xpx = 0; xpx < 4; xpx++)
-					{
-						for (int i = 0; i < 4; i++)
-						{
-							inData[(((ypx * 4) + xpx) * 4) + i] = raw_data[((((y + ypx) * width) + (x + xpx)) * 4) + i];
+						for (int i = 0; i < 4; i++) {
+							inData[(((ypx * 4) + xpx) * 4) + i] = raw_data[(((src_y * width) + src_x) * 4) + i];
 						}
 					}
 				}
-				uint8_t* block = &compressedData[(y / 4 * width / 4 + x / 4) * 8];
+				uint8_t* block = &compressedData[((y / 4) * blocks_x + (x / 4)) * 8];
 				rgbcx::encode_bc1(10, block, inData, true, false);
-				delete[] inData;
 			}
 		}
 
-		texture->mips[mip_index].mipData.clear();
+		texture->mips[mip_index].mipData.assign(compressedData, compressedData + compressed_len);
+		texture->mips[mip_index].len_1 = compressed_len;
+		texture->mips[mip_index].len_2 = compressed_len;
 
-		auto len = width * height / 2;
-		for (int i = 0; i < len; i++) {
-			texture->mips[mip_index].mipData.push_back(compressedData[i]);
-		}
-		texture->mips[mip_index].len_1 = len;
-		texture->mips[mip_index].len_2 = len;
 		delete[] compressedData;
 		delete[] raw_data;
 	}
